@@ -21,7 +21,7 @@ function MyMRList(props: {
     | React.ReactElement<List.Dropdown.Props, string | React.JSXElementConstructor<any>>
     | null
     | undefined;
-}): JSX.Element {
+}) {
   const mrs = props.mrs;
 
   const refresh = () => {
@@ -62,7 +62,7 @@ export function MyMergeRequests(props: {
   state: MRState;
   searchText?: string | undefined;
   onSearchTextChange?: (text: string) => void;
-}): JSX.Element {
+}) {
   const scope = props.scope;
   const state = props.state;
   const [project, setProject] = useState<Project>();
@@ -89,7 +89,9 @@ export function MyMergeRequests(props: {
 export function useMyMergeRequests(
   scope: MRScope,
   state: MRState,
-  project: Project | undefined
+  project: Project | undefined,
+  labels: string[] | undefined = undefined,
+  hideArchived = false,
 ): {
   mrs: MergeRequest[] | undefined;
   isLoading: boolean;
@@ -102,15 +104,20 @@ export function useMyMergeRequests(
     error,
     performRefetch,
   } = useCache<MergeRequest[] | undefined>(
-    `mymrs_${scope}_${state}`,
+    `mymrs_${scope}_${state}_${labels ? labels.join(",") : "[]"}_${hideArchived}`,
     async (): Promise<MergeRequest[] | undefined> => {
-      return await gitlab.getMergeRequests({ state, scope });
+      return await gitlab.getMergeRequests({
+        state,
+        scope,
+        ...(labels && { labels }),
+        ...(hideArchived && { non_archived: true }),
+      });
     },
     {
-      deps: [project, scope, state],
+      deps: [project, scope, state, labels, hideArchived],
       secondsToRefetch: 10,
       secondsToInvalid: daysInSeconds(7),
-    }
+    },
   );
   return { mrs, isLoading, error, performRefetch };
 }

@@ -1,8 +1,8 @@
 import { Action, ActionPanel, Form, Icon, Toast, closeMainWindow, showToast, useNavigation } from "@raycast/api";
 import { FormValidation, showFailureToast, useForm } from "@raycast/utils";
 
-import { getNoteBody, setNoteBody } from "../api";
-import { useNotes } from "../useNotes";
+import { getNoteBody, setNoteBody } from "../api/applescript";
+import { useNotes } from "../hooks/useNotes";
 
 type AddTextFormProps = {
   draftValues?: Form.Values;
@@ -19,10 +19,6 @@ export default function AddTextForm({ draftValues, noteId }: AddTextFormProps) {
   const { data, isLoading, permissionView } = useNotes();
   const { pop } = useNavigation();
 
-  if (permissionView) {
-    return permissionView;
-  }
-
   const { itemProps, handleSubmit, reset } = useForm<AddTextFormValues>({
     async onSubmit(values) {
       const noteTitle =
@@ -34,7 +30,7 @@ export default function AddTextForm({ draftValues, noteId }: AddTextFormProps) {
         const text = values.prepend ? `${values.text}\n\n${noteBody}` : `${noteBody}\n\n${values.text}`;
         await setNoteBody(values.note, text);
         if (noteId) {
-          await pop();
+          pop();
         } else {
           await closeMainWindow();
         }
@@ -55,6 +51,10 @@ export default function AddTextForm({ draftValues, noteId }: AddTextFormProps) {
       text: FormValidation.Required,
     },
   });
+
+  if (permissionView) {
+    return permissionView;
+  }
 
   return (
     <Form

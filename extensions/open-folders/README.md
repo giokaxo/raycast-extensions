@@ -6,7 +6,7 @@
 
 ## Description
 
-This mod provides several commands centered around opening your common files and folders. It provides quite a few commands for varying uses so there should be something for everyone! Take a look at the schenarios below to get a feel for how you might use the extension.
+This mod provides several commands centered around opening your common files and folders. It provides quite a few commands for varying uses, so there should be something for everyone! Take a look at the scenarios below to get a feel for how you might use the extension.
 
 *Not all commands will be useful to everyone. To avoid command clutter, turn off any individual commands you won't use.*
 
@@ -40,6 +40,26 @@ In the extension preferences you can set each of the dedicated folder commands t
 #### Prefer lists over grids? Prefer large grid items over small?
 
 In the extension preferences you can change the layout of the List Downloads and List User Folders commands to a List or a Grid, and when selecting a Grid you can choose any number of items wide from 3 to 8 for very large to very small items.
+
+#### Need more than just opening?
+
+Every file and folder item includes additional actions: **Show in Finder** to reveal the item in its parent folder, **Copy Path** (⌘C) to copy the full path, **Quick Look** (⌘Y) to preview files, and **Move to Trash** (⌃X) to delete files directly.
+
+#### Want to keep your favorite folders at the top?
+
+In `List User Folders`, press **⌘⇧P** to pin a folder. Pinned folders appear in a dedicated section at the top of the list. Press again to unpin.
+
+#### Need to drill into subfolders?
+
+In `List User Folders`, press **⌘→** on any folder to browse its contents without leaving Raycast. You can navigate multiple levels deep.
+
+#### Frequently opening the same folders?
+
+The `Recent Folders` command remembers the last 20 folders you opened through this extension, so you can get back to them instantly.
+
+#### Need to quickly access the Trash?
+
+Use the `Open Trash` command to jump to the Trash folder in Finder.
 
 
 ## Author

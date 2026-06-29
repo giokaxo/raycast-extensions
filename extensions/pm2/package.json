@@ -22,6 +22,13 @@
     "publish": "npx @raycast/api@latest publish"
   },
   "license": "MIT",
+  "external": [
+    "../../tools/prompt",
+    "blessed/lib/colors",
+    "fsevents",
+    "pty.js",
+    "term.js"
+  ],
   "commands": [
     {
       "name": "main",
@@ -47,14 +54,6 @@
       "placeholder": "e.g. /opt/homebrew/bin/node"
     },
     {
-      "type": "textfield",
-      "required": true,
-      "name": "npmPath",
-      "title": "npm bin path",
-      "description": "Your npm binary path",
-      "placeholder": "e.g. /opt/homebrew/bin/npm"
-    },
-    {
       "type": "dropdown",
       "required": false,
       "name": "defaultNodeExecutor",
@@ -71,24 +70,35 @@
           "value": "preferenceNodePath"
         }
       ]
+    },
+    {
+      "type": "textfield",
+      "required": false,
+      "name": "pm2Home",
+      "title": "PM2 Home Directory",
+      "default": "",
+      "description": "The directory where PM2 stores its configuration files and logs",
+      "placeholder": "e.g. /Users/litomore/.pm3"
     }
   ],
   "dependencies": {
-    "@raycast/api": "^1.75.2",
-    "@raycast/utils": "^1.15.0",
-    "@types/lodash": "^4.17.4",
-    "date-fns": "^3.6.0",
-    "execa": "^9.1.0",
-    "lodash": "^4.17.21",
-    "raycast-cross-extension": "^0.2.2"
+    "@raycast/api": "^1.104.15",
+    "@raycast/utils": "^2.2.4",
+    "date-fns": "^4.1.0",
+    "lodash": "^4.18.1",
+    "pm2": "^7.0.1",
+    "raycast-cross-extension": "^0.2.3"
   },
   "devDependencies": {
-    "@raycast/eslint-config": "^1.0.8",
-    "@types/node": "^20.12.5",
-    "@types/react": "^18.2.75",
-    "eslint": "^8.57.0",
-    "pm2": "^5.4.0",
-    "prettier": "^3.2.5",
-    "typescript": "^5.4.4"
-  }
+    "@raycast/eslint-config": "^2.1.1",
+    "@types/lodash": "^4.17.24",
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
+    "eslint": "^9.23.0",
+    "prettier": "^3.8.3",
+    "typescript": "^5.9.3"
+  },
+  "platforms": [
+    "macOS"
+  ]
 }

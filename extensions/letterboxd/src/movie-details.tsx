@@ -1,9 +1,9 @@
 import React from "react";
 import { useCachedPromise } from "@raycast/utils";
 import { AsyncStatus, fetchMovieDetails } from "./letterboxd-api";
-import { Action, ActionPanel, Detail } from "@raycast/api";
+import { Action, ActionPanel, Color, Detail } from "@raycast/api";
 import { STRINGS } from "./strings";
-import { MovieDetails, Review } from "./types";
+import type { MovieDetails, Review } from "./types";
 import { ErrorScreen } from "./components/error-screen";
 import { convertHtmlToCommonMark, humanizeInteger } from "./utils";
 import { getFullURL } from "./letterboxd-api";
@@ -107,7 +107,7 @@ const getReviewsMarkdown = (review: Review): string => {
 
   reviewMarkdown += `
 
-  ${(review.reviewBody ?? "").substring(0, 400)} ${review.reviewUrl ? `[...more](${getFullURL(review.reviewUrl)})` : ""}
+  ${review.reviewBody ? Array.from(review.reviewBody).slice(0, 400).join("") : ""} ${review.reviewUrl ? `[...more](${getFullURL(review.reviewUrl)})` : ""}
   
   ##
   ---
@@ -139,6 +139,13 @@ function Metadata(props: MetadataProps) {
         title={STRINGS.releasedLabel}
         text={movie.released}
       />
+
+      {movie.runtime ? (
+        <Detail.Metadata.Label
+          title={STRINGS.runtimeLabel}
+          text={`${movie.runtime} ${STRINGS.runtimeUnit}`}
+        />
+      ) : null}
 
       {movie.stats ? (
         <Detail.Metadata.Link
@@ -172,7 +179,7 @@ function Metadata(props: MetadataProps) {
           <Detail.Metadata.TagList.Item
             key={genre}
             text={genre}
-            color={"#ecf0f1"}
+            color={Color.SecondaryText}
           />
         ))}
       </Detail.Metadata.TagList>

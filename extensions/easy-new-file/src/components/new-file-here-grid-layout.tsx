@@ -1,22 +1,22 @@
 import { codeFileTypes, documentFileTypes, scriptFileTypes, TemplateType } from "../types/file-type";
 import React from "react";
-import { getPreferenceValues, Grid } from "@raycast/api";
+import { Grid } from "@raycast/api";
 import { isEmpty, isImage } from "../utils/common-utils";
 import { parse } from "path";
 import { ActionNewTemplateFileHere } from "./action-new-template-file-here";
-import { Preferences } from "../types/preferences";
 import { NewFileHereEmptyView } from "./new-file-here-empty-view";
 import { NewFileHereItem } from "./new-file-here-item";
+import { columns, itemInset, layout, showCode, showDocument, showScript } from "../types/preferences";
+import { MutatePromise } from "@raycast/utils";
 
 export function NewFileHereGridLayout(props: {
   navigationTitle: string;
   isLoading: boolean;
   templateFiles: TemplateType[];
   folder: string;
-  setRefresh: React.Dispatch<React.SetStateAction<number>>;
+  mutate: MutatePromise<TemplateType[]>;
 }) {
-  const { navigationTitle, isLoading, templateFiles, folder, setRefresh } = props;
-  const { layout, columns, itemInset, showDocument, showCode, showScript } = getPreferenceValues<Preferences>();
+  const { navigationTitle, isLoading, templateFiles, folder, mutate } = props;
   return (
     <Grid
       navigationTitle={navigationTitle}
@@ -29,12 +29,16 @@ export function NewFileHereGridLayout(props: {
     >
       <NewFileHereEmptyView
         layout={layout}
-        title={"No templates"}
+        title={"No Templates"}
         description={"You can add template from the Action Panel"}
-        setRefresh={setRefresh}
+        mutate={mutate}
       />
       <Grid.Section title={"Template"}>
         {templateFiles.map((template, index) => {
+          let tooltip = template.name + "." + template.extension;
+          if (template.name.startsWith(".")) {
+            tooltip = template.name;
+          }
           return (
             <Grid.Item
               id={template.path}
@@ -42,7 +46,7 @@ export function NewFileHereGridLayout(props: {
               keywords={[template.extension]}
               content={{
                 value: isImage(parse(template.path).ext) ? { source: template.path } : { fileIcon: template.path },
-                tooltip: template.name + "." + template.extension,
+                tooltip: tooltip,
               }}
               title={template.name}
               quickLook={{ path: template.path, name: template.name }}
@@ -52,7 +56,7 @@ export function NewFileHereGridLayout(props: {
                   index={index}
                   templateFiles={templateFiles}
                   folder={folder}
-                  setRefresh={setRefresh}
+                  mutate={mutate}
                 />
               }
             />
@@ -70,7 +74,7 @@ export function NewFileHereGridLayout(props: {
                 newFileType={{ section: "Document", index: index }}
                 templateFiles={templateFiles}
                 folder={folder}
-                setRefresh={setRefresh}
+                mutate={mutate}
               />
             );
           })}
@@ -87,7 +91,7 @@ export function NewFileHereGridLayout(props: {
                 newFileType={{ section: "Code", index: index }}
                 templateFiles={templateFiles}
                 folder={folder}
-                setRefresh={setRefresh}
+                mutate={mutate}
               />
             );
           })}
@@ -104,7 +108,7 @@ export function NewFileHereGridLayout(props: {
                 newFileType={{ section: "Script", index: index }}
                 templateFiles={templateFiles}
                 folder={folder}
-                setRefresh={setRefresh}
+                mutate={mutate}
               />
             );
           })}

@@ -1,13 +1,13 @@
-import { Action, ActionPanel, Detail, Icon, useNavigation } from "@raycast/api";
-import { PicsumImageAction } from "./picsum-image-action";
-import React from "react";
-import { ActionOpenPreferences } from "./action-open-preferences";
+import type { Dispatch, SetStateAction } from "react";
+import { Action, ActionPanel, Detail, Icon, Keyboard, useNavigation } from "@raycast/api";
+import { ActionOpenPreferences } from "@/components/action-open-preferences";
+import { PicsumImageAction } from "@/components/picsum-image-action";
 
 export function ImageDetail(props: {
   imageURL: string;
   size: string;
   autoRefresh: boolean;
-  setRefresh: React.Dispatch<React.SetStateAction<number>>;
+  setRefresh: Dispatch<SetStateAction<number>>;
 }) {
   const { imageURL, size, autoRefresh, setRefresh } = props;
   return (
@@ -21,7 +21,7 @@ export function ImageDetail(props: {
             <Action
               icon={Icon.Minimize}
               title={"Quit Preview"}
-              shortcut={{ modifiers: ["cmd"], key: "y" }}
+              shortcut={Keyboard.Shortcut.Common.ToggleQuickLook}
               onAction={useNavigation().pop}
             />
           </ActionPanel.Section>

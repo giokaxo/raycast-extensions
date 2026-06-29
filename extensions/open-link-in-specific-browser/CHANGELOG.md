@@ -1,6 +1,23 @@
 # Open Link in Specific Browser Changelog
 
-## [Refactoring extension] - 2024-05-26
+## [Hide Specific Browsers] - 2026-05-12
+
+- Add the ability to hide specific browsers from the list and the menu bar
+
+## [New Command] - 2025-03-08
+
+- Add new command: Open selected text in default browser
+
+## [Update Icon] - 2024-07-25
+
+- Update menu bar icon
+
+## [Optimise Performance] - 2024-06-26
+
+- Automatically detect the URL of the current tab of the browser which is in focus if no URL is detected
+- Optimising the operational performance of extensions
+
+## [Refactor extension] - 2024-05-26
 
 - Non-URL type links are no longer supported
 - Extensions are now easier and faster

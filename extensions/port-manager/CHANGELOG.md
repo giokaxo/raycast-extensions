@@ -1,5 +1,13 @@
 # Port Manager Changelog
 
+## [Fixed lsof Process Cleanup] - 2026-05-29
+
+- Improved port refreshes to prevent long-running `lsof` processes from piling up when port detection stalls
+
+## [New Preferences] - 2024-11-25
+
+- Added preferences to customize the primary action of the `Open Port` command
+
 ## [New Command] - 2024-03-14
 
 - Added a new command to quickly kill a port 

@@ -26,35 +26,36 @@ export class Easydict {
   static repo = "Raycast-Easydict";
 
   // * NOTE: this is new version info, don't use it directly. Use getCurrentStoredVersionInfo() instead.
-  version = "2.9.1";
-  buildNumber = 27;
-  versionDate = "2024-01-08";
+  version = "2.11.3";
+  buildNumber = 30;
+  versionDate = "2026-05-15";
   isNeedPrompt = true;
   hasPrompted = false; // * always default false, only show once, then should be set to true.
 
   releaseMarkdown = `
 ## [v${this.version}] - ${this.versionDate}
 
-### 💎 优化
+### 💎 改进
 
-- 支持自定义 OpenAI API URL，感谢 [liyaodong](https://github.com/liyaodong) 的 PR。
-- 优化了语种识别功能，添加百度语种识别为默认选项。
+- 优化类型安全。
+- 更新依赖，提升稳定性
 
-#### 如果觉得这个扩展还不错，给个 [Star](https://github.com/tisfeng/Raycast-Easydict) ⭐️ 支持一下吧 (^-^)
+### 🐞 修复
 
-## 推荐
-
-我另一个免费开源项目，[Easydict](https://github.com/tisfeng/Easydict) ，一个简洁优雅的词典翻译 macOS App。开箱即用，支持离线 OCR 识别，支持有道词典，🍎 苹果系统词典，🍎 苹果系统翻译，ChatGPT，DeepL，Google，Bing，腾讯，百度，阿里，小牛，彩云和火山翻译。
-
-![iShot_2023-03-17_18.01.22_11zon-1679050206](https://raw.githubusercontent.com/tisfeng/ImageBed/main/uPic/iShot_2023-03-17_18.01.22_11zon-1679050206.jpg)
+- 移除密码字段的默认值，防止运行时类型不匹配。
 
 ---
 
-### ✨ New Features
+### 💎 Improvement
 
-- Added OCR screenshot translation command, thanks to [aidevjoe](https://github.com/aidevjoe)'s PR.
+- Improve type safety.
+- Update dependencies and improve stability
+
+### 🐞 Fixed
+
+- Remove default values for password fields to prevent runtime type mismatch.
+
 `;
-
   getRepoUrl() {
     return `${githubUrl}/${Easydict.author}/${Easydict.repo}`;
   }

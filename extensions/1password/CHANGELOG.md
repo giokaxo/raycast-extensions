@@ -1,25 +1,102 @@
 # 1Password Changelog
 
+## [Bug Fix] - 2026-06-15
+
+- Reduce memory usage when loading large item lists by avoiding the full item payload until it is needed. Opt in via **Reduce item list memory usage** in extension preferences.
+- When enabled, the item list uses the summary payload, so username/email subtitles and username/email search are unavailable until full item details are fetched by an action.
+- When enabled, the list renders the first 200 matching items to avoid Raycast worker memory limits on very large vaults.
+
+## [Enhancements] - 2026-04-16
+
+- Improved search: queries now match across all item fields (title, username/email, URLs, vault name). For example, searching "m@ goo" now finds a Google login with email "m@example.com".
+
+## [Added Windows Support] - 2026-04-06
+
+- Added Windows platform support
+- Added Windows-compatible 1Password CLI path detection
+- Updated keyboard shortcuts for cross-platform compatibility
+- Updated setup guide for Windows (Windows Hello instead of Touch ID)
+
+## [Chore] - 2025-11-15
+
+- Add stricter, opinionated eslint rules for clarity
+
+## [Chore] - 2025-10-14
+
+- Adopt the latest available extension template
+- Fix lints
+
+## [Enhancements] - 2025-10-01
+
+- Added Paste actions for Login items: Paste Username, Paste Password, Paste One-time Password.
+- Paste actions now show the app's icon and name (e.g., "Paste Password to Safari").
+- Preferences updated to allow selecting Paste actions as Primary/Secondary actions.
+
+## [Enhancements] - 2025-08-25
+
+- Fixed "Enter Vault" misleading icon
+
+## [Moved contributor] - 2025-02-24
+
+## [Moved contributor] - 2025-02-03
+
+## [Enhancements] - 2025-02-12
+
+- Give a guid page when the user not install 1Password CLI
+
+## [Maintenance] - 2025-01-19
+
+- Remove unused Bun lockfile
+- Fix types
+- Bump all dependencies to the latest
+
+## [Chore] - 2025-01-09
+
+- Moved contributor to past contributors
+- Bump all dependencies to the latest
+
+## [Chore] - 2024-12-02
+
+- Add readme & FAQ
+- Bump all dependencies to the latest
+- Resolve all linting errors
+- Resolve all vulnerabilities through `npm audit fix`
+
+## [Enhancements] - 2024-10-16
+
+- Feat: allow filtering by additional information
+
+## [Enhancements] - 2024-08-13
+
+- Fix: multilingual OTP name can't be read
+- Feat: support generate random password
+
+## [Fix] - 2024-08-05
+
+- Add support for showing missing 1Password CLI error
+- Adjust toast message
+- Fix markdown format
+
 ## [Fix] - 2024-05-23
 
--- Fixes the infinite loading when trying to switch accounts.
+- Fixes the infinite loading when trying to switch accounts.
 
 ## [Fix] - 2024-05-21
 
--- Fixes account_uuid is undefined
+- Fixes account_uuid is undefined
 
 ## [Fix] - 2024-05-21
 
--- Fixes account selection
+- Fixes account selection
 
 ## [Enhancements] - 2024-05-10
 
--- Fixes double auth prompts.
--- Adds "My Vaults" command.
--- Adds "Switch Account" action.
--- Improves error handling.
--- Modifies Auto Renewal to be disabled by default.
--- Improves Auto Renewal to start renewing only after a manual sign-in.
+- Fixes double auth prompts.
+- Adds "My Vaults" command.
+- Adds "Switch Account" action.
+- Improves error handling.
+- Modifies Auto Renewal to be disabled by default.
+- Improves Auto Renewal to start renewing only after a manual sign-in.
 
 ## [Moved contributor] - 2024-05-03
 

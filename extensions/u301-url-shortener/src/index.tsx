@@ -1,52 +1,89 @@
-import { getSelectedText, Clipboard, showToast, Toast, getPreferenceValues } from "@raycast/api";
-import fetch, { Headers } from "node-fetch";
+import { Action, ActionPanel, Icon, List, LaunchProps } from "@raycast/api";
+import { useState, useEffect } from "react";
+import { Clipboard, showToast, Toast, open } from "@raycast/api";
+import { isValidURL, shortenURL } from "./util";
+import { getFavicon } from "@raycast/utils";
 
-function isValidURL(string: string) {
-  const res = string.match(
-    /(http(s)?:\/\/.)(www\.)?[-a-zA-Z0-9@:%._+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_+.~#?&//=]*)/g,
-  );
-  return res !== null;
+interface Result {
+  status: "init" | "shortened" | "error";
+  url: string;
+  shortened: string;
+  errorMessage?: string;
 }
 
-async function reportError({ message }: { message: string }) {
-  await showToast(Toast.Style.Failure, "Error", message.toString());
-}
+export default function Command(props: LaunchProps<{ arguments: Arguments.Index }>) {
+  const { url, key, comment } = props.arguments;
+  const [result, setResult] = useState<Result | null>(null);
+  const [isLoading, setLoading] = useState(false);
 
-export default async function Command() {
-  try {
-    const preferences = getPreferenceValues();
-    const selectedText = await getSelectedText();
-    if (!isValidURL(selectedText)) {
-      return reportError({ message: "Selected text is not a valid URL" });
+  const startShortening = async () => {
+    if (!url || !isValidURL(url)) {
+      showToast(Toast.Style.Failure, "Invalid URL", "Please provide a valid URL");
+      return;
     }
 
-    showToast({
+    setLoading(true);
+    const toast = await showToast({
       style: Toast.Style.Animated,
       title: "Shortening",
     });
-    const headers = new Headers({
-      "Content-Type": "application/json",
-    });
-    if (preferences.accessToken) {
-      headers.append("Authorization", `Bearer ${preferences.accessToken}`);
-    }
-    const res = await fetch(`https://api.u301.com/v2/shorten?url=${encodeURIComponent(selectedText)}`, {
-      headers,
-    });
-    const { shortened, message = "Failed to shorten" } = (await res.json()) as { shortened: string; message?: string };
-    if (!shortened) {
-      return reportError({ message });
-    }
-    if (preferences.clipboard === "clipboard") {
-      await Clipboard.copy(shortened);
-    } else {
-      await Clipboard.paste(shortened);
-    }
-  } catch (error) {
-    return reportError({
-      message: "Not able to get selected text",
-    });
-  }
 
-  await showToast(Toast.Style.Success, "Success", "Copied shortened URL to clipboard");
+    try {
+      const shortLink = await shortenURL({
+        url: url.trim(),
+        slug: key?.trim(),
+        comment: comment?.trim(),
+      });
+      setResult({
+        status: "shortened",
+        url: url.trim(),
+        shortened: shortLink,
+      });
+      await Clipboard.copy(shortLink);
+      await showToast(Toast.Style.Success, "Success", "Copied shortened URL to clipboard");
+    } catch (error) {
+      const message = (error as Error).message;
+      setResult({
+        status: "error",
+        url: url.trim(),
+        shortened: "",
+        errorMessage: message,
+      });
+      await showToast(Toast.Style.Failure, "Error", message);
+    }
+
+    setLoading(false);
+    toast.hide();
+  };
+
+  useEffect(() => {
+    startShortening();
+  }, []);
+
+  return (
+    <List isLoading={isLoading}>
+      <List.Section title="Result">
+        {result && (
+          <List.Item
+            actions={
+              <ActionPanel>
+                <Action
+                  title="Open URL"
+                  onAction={() => open(result.status === "shortened" ? result.shortened : result.url)}
+                />
+                {result.status === "shortened" && (
+                  <Action.CopyToClipboard title="Copy Shortened URL" content={result.shortened} />
+                )}
+                <Action.CopyToClipboard title="Copy Original URL" content={result.url} />
+              </ActionPanel>
+            }
+            icon={result.status === "shortened" ? getFavicon(result.url) : Icon.ExclamationMark}
+            subtitle={result.status === "shortened" ? result.url : result.errorMessage}
+            title={result.status === "shortened" ? result.shortened : result.url}
+          />
+        )}
+      </List.Section>
+      <List.EmptyView icon={Icon.Link} title="Enter a URL to shorten" />
+    </List>
+  );
 }

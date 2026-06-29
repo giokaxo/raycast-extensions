@@ -1,17 +1,47 @@
-import { List } from "@raycast/api";
+import { getPreferenceValues, List } from "@raycast/api";
+import { useCachedState } from "@raycast/utils";
 import { useState } from "react";
 
 import PullRequestListEmptyView from "./components/PullRequestListEmptyView";
 import PullRequestListItem from "./components/PullRequestListItem";
 import RepositoriesDropdown from "./components/RepositoryDropdown";
+import { PR_DEFAULT_SORT_QUERY } from "./helpers/pull-request";
 import { withGitHubClient } from "./helpers/withGithubClient";
-import { useMyPullRequests } from "./hooks/useMyPullRequests";
+import { SectionType, useMyPullRequests } from "./hooks/useMyPullRequests";
 import { useViewer } from "./hooks/useViewer";
 
 function MyPullRequests() {
   const viewer = useViewer();
   const [selectedRepository, setSelectedRepository] = useState<string | null>(null);
-  const { data: sections, isLoading, mutate: mutateList } = useMyPullRequests(selectedRepository);
+  const [sortQuery, setSortQuery] = useCachedState<string>("sort-query", PR_DEFAULT_SORT_QUERY, {
+    cacheNamespace: "github-my-pr",
+  });
+  const {
+    includeAssigned,
+    includeMentioned,
+    includeReviewed,
+    includeReviewRequests,
+    includeRecentlyClosed,
+    includeDrafts,
+    repositoryFilterMode,
+    repositoryList,
+  } = getPreferenceValues<Preferences.MyPullRequests>();
+  const {
+    data: sections,
+    isLoading,
+    mutate: mutateList,
+  } = useMyPullRequests({
+    repository: selectedRepository,
+    sortQuery,
+    includeAssigned,
+    includeMentioned,
+    includeRecentlyClosed,
+    includeDrafts,
+    includeReviewRequests,
+    includeReviewed,
+    filterMode: repositoryFilterMode,
+    repositoryList: repositoryList?.split(",").map((r) => r.trim()) || [],
+  });
 
   return (
     <List
@@ -26,9 +56,8 @@ function MyPullRequests() {
               return (
                 <PullRequestListItem
                   key={pullRequest.id}
-                  pullRequest={pullRequest}
-                  viewer={viewer}
-                  mutateList={mutateList}
+                  showAuthor={section.type !== SectionType.Open}
+                  {...{ pullRequest, viewer, mutateList, sortQuery, setSortQuery }}
                 />
               );
             })}

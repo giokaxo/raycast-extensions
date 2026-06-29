@@ -22,6 +22,14 @@ export type UnPress = {
   creator: string;
 };
 
+export type UnPhoto = {
+  thumbImage: string;
+  sourceImage: string;
+  pageUrl: string;
+  title: string;
+  datetime: string;
+};
+
 export enum LanguageCode {
   Arabic = "ar",
   Chinese = "zh",
@@ -76,4 +84,34 @@ export type Internationalization = {
   viewByRegion: string;
   viewByTopic: string;
   newsType: Record<NewsAll | NewsRegion | NewsTopic, string>;
+};
+
+export type SiteIndexItem = { title: string; link: string };
+
+export type SiteIndex = Record<string, SiteIndexItem[]>;
+
+export type RssResponse = {
+  rss: {
+    version: string;
+    channel: RssChannel;
+  };
+};
+
+type RssChannel = {
+  title: string;
+  link: string;
+  description: string;
+  language?: string;
+  lastBuildDate?: string;
+  pubDate?: string;
+  item: RssItem[];
+};
+
+export type RssItem = {
+  title: string;
+  link: string;
+  description: string;
+  author?: string;
+  guid?: string;
+  pubDate?: string;
 };

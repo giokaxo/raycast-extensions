@@ -1,41 +1,63 @@
 import { List, ActionPanel, Action, Icon } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 
-import { Task, getFilterTasks } from "../../src/api";
+import { getFilterTasks, type Task } from "../api";
 import { filterSort } from "../helpers/filters";
 import { QuickLinkView, ViewMode } from "../home";
 import useCachedData from "../hooks/useCachedData";
 import useViewTasks from "../hooks/useViewTasks";
 
-import CreateViewAction from "./CreateViewAction";
+import CreateViewActions from "./CreateViewActions";
 import TaskListSections from "./TaskListSections";
 
 type FilterTasksProps = { name: string; quickLinkView?: QuickLinkView };
+type FilterSection = { name: string; tasks: Task[] };
 
 function FilterTasks({ name, quickLinkView }: FilterTasksProps) {
   const [cachedData] = useCachedData();
   const filters = cachedData?.filters;
   const filter = filters?.find((filter: { name: string }) => filter.name === name);
   const query = filter?.query || "";
-  const [tasks, setTasks] = useState<Task[]>([]);
 
-  const getFilterTasksCached = async (query: string) => {
-    const filterTasks = await getFilterTasks(query);
-    return filterTasks;
-  };
+  const { data } = useCachedPromise(
+    async (search: string): Promise<FilterSection[]> => {
+      const queries = search
+        .split(",")
+        .map((part: string) => part.trim())
+        .filter((q: string) => q.length > 0);
+      const sections = await Promise.all(
+        queries.map(async (q: string) => {
+          const tasks = await getFilterTasks(q);
+          const sortedTasks = filterSort(tasks);
+          return { name: q, tasks: sortedTasks };
+        }),
+      );
+      return sections;
+    },
+    [query],
+  );
 
-  const { isLoading, data } = useCachedPromise(getFilterTasksCached, [query]);
+  const sections = data ?? [];
+  const tasks = useMemo(() => {
+    if (!cachedData) return sections.flatMap((section) => section.tasks);
+    const byId = new Map(cachedData.items.map((item) => [item.id, item]));
+    // Omit ids missing from sync cache so completed/deleted tasks do not stick to stale filter API rows.
+    return sections.flatMap((section) =>
+      section.tasks.map((task) => byId.get(task.id)).filter((t): t is Task => t !== undefined),
+    );
+  }, [sections, cachedData]);
 
-  useEffect(() => {
-    if (data) {
-      setTasks(filterSort(data));
-    }
-  }, [data]);
+  const {
+    sections: groupedSections,
+    sortedTasks,
+    viewProps,
+  } = useViewTasks(`todoist.filter${name}`, {
+    tasks,
+    data: cachedData,
+  });
 
-  const { sections, viewProps } = useViewTasks(`todoist.filter${name}`, { tasks });
-
-  if (tasks.length === 0) {
+  if (sections.length === 0) {
     return (
       <List.EmptyView
         title="No tasks for this filter."
@@ -49,18 +71,32 @@ function FilterTasks({ name, quickLinkView }: FilterTasksProps) {
               shortcut={{ modifiers: ["cmd", "shift"], key: "a" }}
             />
 
-            {quickLinkView ? <CreateViewAction {...quickLinkView} /> : null}
+            {quickLinkView ? (
+              <ActionPanel.Section>
+                <CreateViewActions {...quickLinkView} />
+              </ActionPanel.Section>
+            ) : null}
           </ActionPanel>
         }
       />
     );
   }
 
+  const displayedSections =
+    viewProps.groupBy?.value !== "default"
+      ? groupedSections
+      : sections.length > 1
+        ? sections.map((s) => {
+            const idSet = new Set(s.tasks.map((t: Task) => t.id));
+            return { name: s.name, tasks: sortedTasks.filter((t: Task) => idSet.has(t.id)) };
+          })
+        : [{ name, tasks: sortedTasks }];
+
   return (
     <TaskListSections
-      isLoading={isLoading}
       mode={ViewMode.project}
-      sections={viewProps.groupBy?.value === "default" ? [{ name, tasks: tasks }] : sections}
+      showProjectAccessory
+      sections={displayedSections}
       viewProps={viewProps}
       quickLinkView={quickLinkView}
     />

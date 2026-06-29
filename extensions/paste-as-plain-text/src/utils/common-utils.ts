@@ -1,7 +1,7 @@
-import { cleanLineBreaks, trimEnd, trimStart } from "../types/types";
-import { Cache } from "@raycast/api";
+import { cleanLineBreaks, showTips, trimEnd, trimStart } from "../types/types";
+import { Cache, showHUD, showToast, Toast } from "@raycast/api";
 import axios from "axios";
-import cheerio from "cheerio";
+import { load } from "cheerio";
 
 export const isEmpty = (string: string | null | undefined) => {
   return !(string != null && String(string).length > 0);
@@ -37,13 +37,13 @@ export const tryTrim = (str: string | undefined): string => {
 };
 
 /**
- * strips all newline characters from the string and replaces them witha space.
+ * strips all newline characters from the string and replaces them with a space.
  */
 export const tryStrip = (str: string): string => {
   if (!cleanLineBreaks) {
     return str;
   }
-  return str.replace(/[\r\n]/gm, " ");
+  return str.replace(/[ \t]*[\r\n]+[ \t]*/gm, " ");
 };
 
 export const transform = (str: string | undefined | null): string => {
@@ -66,31 +66,36 @@ export function extractUrl(text: string) {
   }
 }
 
-export function extractNumber(str: string) {
-  const matches = str.match(/-?[0-9.]+/g);
-
-  if (matches) {
-    if (matches[0][0] !== "-") {
-      matches[0] = matches[0].replace("-", "");
-    }
-    for (let i = 1; i < matches.length; i++) {
-      matches[i] = matches[i].replace("-", "");
-    }
-    return matches.join("");
-  } else {
-    return undefined;
+export function extractNumber(input: string): string {
+  const match = input.match(/-?[\d,]+(?:\.\d+)?\b/);
+  if (match) {
+    return match[0].replace(/,/g, "");
   }
+  return "";
 }
 
 export async function fetchTitle(url: string) {
   try {
     const response = await axios.get(url);
     const html = response.data;
-    const $ = cheerio.load(html);
-    const title = $("title").text();
-    return title;
+    const $ = load(html);
+    return $("title").text();
   } catch (error) {
     console.error("Error fetching title:", error);
     return "";
   }
 }
+
+export const showCustomHUD = (options: Toast.Options) => {
+  if (options.style && options.style === Toast.Style.Failure) {
+    // failure should always show toast
+    return showToast(options);
+  } else if (showTips) {
+    // success or animated should show HUD
+    if (options.style && options.style === Toast.Style.Animated) {
+      return showToast(options);
+    } else {
+      return showHUD(options.title);
+    }
+  }
+};

@@ -1,14 +1,47 @@
-import { runAppleScript } from "run-applescript";
-import { environment, getSelectedFinderItems } from "@raycast/api";
+import { environment, getSelectedFinderItems, Icon, showHUD, showToast, Toast } from "@raycast/api";
 import fse from "fs-extra";
-import { homedir } from "os";
 import { buildFileName } from "../new-file-with-template";
 import { imgExt } from "./constants";
 import { allFileTypes, FileType, TemplateType } from "../types/file-type";
 import fileUrl from "file-url";
+import { defaultDirectory, showTips } from "../types/preferences";
+import { runAppleScript } from "@raycast/utils";
+import { homedir } from "os";
+import path from "path";
 
 export const isEmpty = (string: string | null | undefined) => {
   return !(string != null && String(string).length > 0);
+};
+
+const getDefaultDirectory = (): string => {
+  if (!isEmpty(defaultDirectory)) {
+    return defaultDirectory;
+  }
+  return path.join(homedir(), "Desktop");
+};
+
+const scriptFinderHasWindows = `
+if application "Finder" is not running then
+    return "false"
+end if
+
+tell application "Finder"
+    if (count of windows) > 0 then
+        return "true"
+    else
+        return "false"
+    end if
+end tell
+`;
+
+export const finderHasOpenWindows = async (): Promise<boolean> => {
+  try {
+    const result = await runAppleScript(scriptFinderHasWindows);
+    return result.trim() === "true";
+  } catch (e) {
+    console.error("Error checking Finder windows:", e);
+    return false;
+  }
 };
 
 const scriptFinderPath = `
@@ -23,9 +56,15 @@ end tell
 
 export const getFinderPath = async () => {
   try {
-    return await runAppleScript(scriptFinderPath);
+    const finderHasWindows = await finderHasOpenWindows();
+    let directory = getDefaultDirectory();
+    if (finderHasWindows) {
+      directory = await runAppleScript(scriptFinderPath);
+    }
+    return directory;
   } catch (e) {
-    return "Finder not running";
+    console.error(e);
+    return getDefaultDirectory();
   }
 };
 
@@ -34,6 +73,7 @@ export const checkIsFile = (path: string) => {
     const stat = fse.lstatSync(path);
     return stat.isFile();
   } catch (e) {
+    console.error(e);
     return false;
   }
 };
@@ -50,6 +90,7 @@ export const getSelectedFile = async () => {
     });
     return selectedFile;
   } catch (e) {
+    console.error(e);
     return selectedFile;
   }
 };
@@ -58,27 +99,14 @@ export const isImage = (ext: string) => {
   return imgExt.includes(ext);
 };
 
-export const getSavedDirectory = (saveDirectory: string) => {
-  let actualDirectory = saveDirectory;
-  if (saveDirectory.startsWith("~")) {
-    actualDirectory = saveDirectory.replace("~", `${homedir()}`);
-  }
-  if (isEmpty(actualDirectory) || !fse.pathExistsSync(actualDirectory)) {
-    return homedir() + "/Desktop";
-  }
-  return actualDirectory.endsWith("/") ? actualDirectory : actualDirectory + "/";
-};
-
 export async function createNewFileWithText(
   fileExtension: string,
   saveDirectory: string,
   fileContent = "",
   fileName = "",
 ) {
-  isEmpty(fileName)
-    ? (fileName = buildFileName(saveDirectory, "Untitled", fileExtension))
-    : (fileName = buildFileName(saveDirectory, fileName, fileExtension));
-  const filePath = saveDirectory + fileName;
+  fileName = buildFileName(saveDirectory, fileName, fileExtension);
+  const filePath = path.join(saveDirectory, fileName);
   fse.writeFileSync(filePath, fileContent);
   return { fileName: fileName, filePath: filePath };
 }
@@ -110,8 +138,9 @@ function findFileTypeByExtension(fileExt: string): FileType | undefined {
   return allFileTypes.find((fileType) => fileType.extension === fileExt);
 }
 
-export function getNewFileType(fileName: string) {
+export function getNewFileType(fileName: string): FileType {
   const { baseName, extension } = getFileDetails(fileName);
+  const hasDot = fileName.lastIndexOf(".") !== -1;
   const fileType = findFileTypeByExtension(extension.toLowerCase());
   if (fileType) {
     if (isEmpty(baseName)) {
@@ -122,7 +151,43 @@ export function getNewFileType(fileName: string) {
       newFileType.name = baseName;
     }
     return newFileType;
+  } else if (!hasDot) {
+    return {
+      name: baseName,
+      extension: "",
+      languageId: baseName,
+      keywords: [baseName],
+      icon: Icon.Document,
+      inputContent: true,
+    };
   } else {
-    return undefined;
+    return {
+      name: baseName,
+      extension: extension,
+      languageId: extension,
+      keywords: [extension],
+      icon: Icon.Document,
+      inputContent: true,
+    };
   }
 }
+
+export const showCustomHUD = (options: Toast.Options) => {
+  if (options.style && options.style === Toast.Style.Failure) {
+    // failure should always show toast
+    return showToast(options);
+  } else if (showTips) {
+    // success or animated should show HUD
+    if (options.style && options.style === Toast.Style.Animated) {
+      return showToast(options);
+    } else {
+      return showHUD(options.title);
+    }
+  }
+};
+export const showCustomToast = (options: Toast.Options) => {
+  if (options.style && options.style === Toast.Style.Failure) {
+    return showToast(options);
+  }
+  if (showTips) return showToast(options);
+};

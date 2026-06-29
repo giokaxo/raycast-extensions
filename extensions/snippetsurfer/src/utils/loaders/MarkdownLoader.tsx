@@ -22,8 +22,28 @@ function extractMetadataContent(
     }
   }
 
-  const rawMetadata = lines.slice(1, metadataEndIndex).join("\n");
+  // Replaces all tab characters with four spaces, otherwise the `parse(rawMetadata)` will throw an error
+  const rawMetadata = lines.slice(1, metadataEndIndex).join("\n").replace(/\t/g, "    ");
   const content = lines.slice(contentStartIndex).join("\n").trim();
+
+  // Find the start and end of the code block
+  let codeBlockStart = -1;
+  let codeBlockEnd = -1;
+  for (let i = contentStartIndex; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.startsWith("```")) {
+      if (codeBlockStart === -1) {
+        codeBlockStart = i + 1;
+      } else {
+        codeBlockEnd = i;
+        break;
+      }
+    }
+  }
+
+  // Extract the first code block content
+  const firstCodeBlock =
+    codeBlockStart !== -1 && codeBlockEnd !== -1 ? lines.slice(codeBlockStart, codeBlockEnd).join("\n").trim() : "";
 
   let metadata;
   let tags: string[] = [];
@@ -31,8 +51,9 @@ function extractMetadataContent(
   try {
     metadata = parse(rawMetadata);
 
-    // Parse tags
-    const rawTags = metadata?.["Tags"] ?? [];
+    // Parse tags (case-insensitive)
+    const tagsKey = getCaseInsensitiveKey(metadata, "tags") || "Tags";
+    const rawTags = metadata?.[tagsKey] ?? [];
     if (!Array.isArray(rawTags) || rawTags.some((tag) => typeof tag !== "string")) {
       tags = [];
       error = new Error(`Invalid tags. All tags must be a string for ${relativePath}`);
@@ -43,11 +64,14 @@ function extractMetadataContent(
     error = new Error(`Error parsing metadata for ${relativePath}`);
   }
 
+  const titleKey = getCaseInsensitiveKey(metadata, "title") || "Title";
+  const descriptionKey = getCaseInsensitiveKey(metadata, "description") || "Description";
   const snippetContent: SnippetContent = {
-    title: metadata?.["Title"],
-    description: metadata?.["Description"],
+    title: metadata?.[titleKey],
+    description: metadata?.[descriptionKey],
     tags: tags,
     content: content,
+    firstCodeBlock: firstCodeBlock,
     rawMetadata: rawMetadata,
   };
   return { content: snippetContent, error: error };
@@ -79,6 +103,13 @@ async function loadMarkdown(
     content: content,
   };
   return { snippet: snippet, error: error };
+}
+
+function getCaseInsensitiveKey(metadata: any, key: string): string | undefined {
+  if (!metadata) {
+    return undefined;
+  }
+  return Object.keys(metadata).find((k) => k.toLowerCase() === key.toLowerCase());
 }
 
 export default loadMarkdown;

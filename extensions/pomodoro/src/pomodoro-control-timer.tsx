@@ -1,7 +1,7 @@
+import { exec } from "node:child_process";
 import { Detail, launchCommand, LaunchType, closeMainWindow, popToRoot, List, Icon } from "@raycast/api";
 import { ActionPanel, Action } from "@raycast/api";
 import { useFetch } from "@raycast/utils";
-import { exec } from "child_process";
 import {
   continueInterval,
   createInterval,
@@ -12,9 +12,10 @@ import {
   preferences,
   resetInterval,
   restartInterval,
-} from "../lib/intervals";
-import { FocusText, ShortBreakText, LongBreakText } from "../lib/constants";
-import { GiphyResponse, Interval, Quote } from "../lib/types";
+} from "./lib/intervals";
+import { FocusText, ShortBreakText, LongBreakText } from "./lib/constants";
+import { GiphyResponse, Interval, Quote } from "./lib/types";
+import { checkDNDExtensionInstall } from "./lib/doNotDisturb";
 
 const createAction = (action: () => void) => () => {
   action();
@@ -34,6 +35,7 @@ const createAction = (action: () => void) => () => {
 
 const ActionsList = () => {
   const currentInterval = getCurrentInterval();
+  checkDNDExtensionInstall();
 
   return (
     <List navigationTitle="Control Pomodoro Timers">
@@ -119,22 +121,25 @@ const ActionsList = () => {
 
 const handleQuote = (): string => {
   let quote = { content: "You did it!", author: "Unknown" };
-  const { isLoading, data } = useFetch<Quote[]>("https://api.quotable.io/quotes/random?limit=1", {
+  const { isLoading, data } = useFetch<Quote[]>("https://zenquotes.io/api/random", {
     keepPreviousData: true,
   });
   if (!isLoading && data?.length) {
-    quote = data[0];
+    quote = {
+      content: data[0].q,
+      author: data[0].a,
+    };
   }
 
   return `> ${quote.content} \n>\n> &dash; ${quote.author}`;
 };
 
-const EndOfInterval = () => {
-  let markdownContent = "# Interval Completed \n\n";
+const EndOfInterval = ({ intervalType }: { intervalType?: Interval["type"] }) => {
+  let markdownContent = `# ${intervalType === "focus" ? "Focus" : "Break"} Completed \n\n`;
   let usingGiphy = false;
 
   if (preferences.enableConfetti) {
-    exec("open raycast://extensions/raycast/raycast/confetti", function (err, stdout, stderr) {
+    exec(`open ${process.env.RAYCAST_SCHEME ?? "raycast"}://extensions/raycast/raycast/confetti`, function (err) {
       if (err) {
         // handle error
         console.error(err);
@@ -151,13 +156,24 @@ const EndOfInterval = () => {
     markdownContent += handleQuote() + "\n\n";
   }
 
+  if (preferences.randomRewards && intervalType === "focus") {
+    const rewards = preferences.randomRewards
+      .split(",")
+      .map((s: string) => s.trim())
+      .filter(Boolean);
+    if (rewards.length > 0) {
+      const reward = rewards[Math.floor(Math.random() * rewards.length)];
+      markdownContent += `**Your reward:** ${reward}\n\n`;
+    }
+  }
+
   if (preferences.enableImage) {
     if (preferences.giphyAPIKey) {
       const { isLoading, data } = useFetch(
         `https://api.giphy.com/v1/gifs/random?api_key=${preferences.giphyAPIKey}&tag=${preferences.giphyTag}&rating=${preferences.giphyRating}`,
         {
           keepPreviousData: true,
-        }
+        },
       );
       if (!isLoading && data) {
         const giphyResponse = data as GiphyResponse;
@@ -214,5 +230,9 @@ const EndOfInterval = () => {
 };
 
 export default function Command(props: { launchContext?: { currentInterval?: Interval } }) {
-  return props.launchContext?.currentInterval ? <EndOfInterval /> : <ActionsList />;
+  return props.launchContext?.currentInterval ? (
+    <EndOfInterval intervalType={props.launchContext.currentInterval.type} />
+  ) : (
+    <ActionsList />
+  );
 }

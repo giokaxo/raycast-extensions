@@ -3,6 +3,12 @@ import { runAppleScript } from "@raycast/utils";
 import { useEffect, useState } from "react";
 import { buildScriptEnsuringSlackIsRunning } from "./utils";
 
+// `application` hint breaks slack:// URI forwarding on Windows; mac-only.
+const isMac = process.platform === "darwin";
+const slackAppOpenProps = isMac
+  ? ({ application: "Slack", icon: { fileIcon: "/Applications/Slack.app" } } as const)
+  : ({ icon: "slack-icon-rounded.png" } as const);
+
 export const useSlackApp = () => {
   const [state, set] = useState<{ isAppInstalled: boolean; isLoading: boolean }>({
     isAppInstalled: false,
@@ -52,12 +58,11 @@ export const OpenChatInSlack = ({
         <Action.Open
           title={"Open in Slack"}
           target={`slack://user?team=${workspaceId}&id=${userId}`}
-          icon={{ fileIcon: "/Applications/Slack.app" }}
-          application="Slack"
+          {...slackAppOpenProps}
           onOpen={async () => {
             await onAction?.();
             await closeMainWindow();
-            if (closeRightSidebar) {
+            if (closeRightSidebar && process.platform !== "win32") {
               await runAppleScript(
                 buildScriptEnsuringSlackIsRunning(
                   `tell application "System Events" to tell process "Slack" to key code 47 using {command down}`,
@@ -70,8 +75,7 @@ export const OpenChatInSlack = ({
       {conversationId && conversationId.trim().length > 0 && (
         <Action.OpenInBrowser
           url={`https://app.slack.com/client/${workspaceId}/${conversationId}`}
-          title={"Open in Browser"}
-          onOpen={async () => await closeMainWindow()}
+          onOpen={() => closeMainWindow()}
         />
       )}
     </>
@@ -95,12 +99,11 @@ export const OpenChannelInSlack = ({
         <Action.Open
           title={"Open in Slack"}
           target={`slack://channel?team=${workspaceId}&id=${channelId}`}
+          {...slackAppOpenProps}
           onOpen={async () => {
             await onAction?.();
             await closeMainWindow();
           }}
-          icon={{ fileIcon: "/Applications/Slack.app" }}
-          application="Slack"
         />
       )}
       <Action.OpenInBrowser

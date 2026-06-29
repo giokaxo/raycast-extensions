@@ -8,14 +8,20 @@ import { toUnit } from "../utils";
 import { LoadFrom, loadFromClipboard, loadFromFinder } from "../utils/load";
 import { countImageTokens, countToken, estimateImagePrice, estimatePrice } from "../utils/token";
 
+const preferences = getPreferenceValues<Preferences>();
+
+const visionModelName: string = (preferences.useVisionModel && preferences.visionModelName) || "gpt-4o";
+
 const VISION_MODEL: Model = {
-  id: "gpt-4o",
+  id: visionModelName,
   updated_at: new Date().toISOString(),
   created_at: new Date().toISOString(),
   name: "Default",
   prompt: "You are a helpful vision assistant.",
-  option: "gpt-4o",
+  option: visionModelName,
   temperature: "1",
+  enableReasoningEffortChange: false,
+  reasoningEffort: "medium",
   pinned: false,
   vision: true,
 };
@@ -102,7 +108,7 @@ export function VisionView(props: AskImageProps) {
       await showToast({ style: Toast.Style.Failure, title: "Error" });
       setLoading(false);
       setResponse(
-        "## ⚠️ Issue when accessing the API. \n\n" + `Error Message: \n\n \`\`\`${(error as Error).message}\`\`\``
+        "## ⚠️ Issue when accessing the API. \n\n" + `Error Message: \n\n \`\`\`${(error as Error).message}\`\`\``,
       );
       return;
     }
@@ -148,7 +154,7 @@ export function VisionView(props: AskImageProps) {
       setCumulativeCost(
         cumulative_cost +
           estimatePrice(prompt_token_count, response_token_count, VISION_MODEL.option) +
-          estimateImagePrice(image_prompt_token_count)
+          estimateImagePrice(image_prompt_token_count),
       );
     }
   }, [loading]);

@@ -1,15 +1,17 @@
-import { Clipboard, closeMainWindow, showHUD, updateCommandMetadata } from "@raycast/api";
-import { extractNumber, extractUrl, fetchTitle, isEmpty, transform } from "./common-utils";
+import { Clipboard, closeMainWindow, Toast, updateCommandMetadata } from "@raycast/api";
+import { extractNumber, extractUrl, fetchTitle, isEmpty, showCustomHUD, transform } from "./common-utils";
 import { autoFetchTitle, PasteFormat, replaceClipboard } from "../types/types";
-import { isJSON, isURL } from "validator";
+import { isURL } from "validator";
 import fse from "fs-extra";
+import JSON5 from "json5";
 import { fileURLToPath } from "node:url";
 
 export async function pasteAs(advancedPasteFormat: string) {
   await closeMainWindow();
+  await showCustomHUD({ title: "Pasting...", style: Toast.Style.Animated });
   const clipboardText = await Clipboard.readText();
   if (!clipboardText || isEmpty(clipboardText)) {
-    await showHUD("️🚨 No content in clipboard");
+    await showCustomHUD({ title: "No content in clipboard", style: Toast.Style.Failure });
     return;
   }
 
@@ -23,11 +25,16 @@ export async function pasteAs(advancedPasteFormat: string) {
     }
     case PasteFormat.JSON: {
       // paste as json
-      if (isJSON(pasteStr)) {
-        pasteStr = JSON.stringify(JSON.parse(pasteStr), null, 2);
-        realPasteFormatIcon = "📦";
-        realPasteFormat = PasteFormat.JSON;
+      let objType;
+      try {
+        objType = JSON5.parse(pasteStr);
+      } catch (e) {
+        console.log("Invalid object type:", e);
+        break;
       }
+      pasteStr = JSON.stringify(objType, null, 2);
+      realPasteFormatIcon = "📦";
+      realPasteFormat = PasteFormat.JSON;
       break;
     }
     case PasteFormat.URL: {
@@ -50,13 +57,10 @@ export async function pasteAs(advancedPasteFormat: string) {
     }
     case PasteFormat.File: {
       const { file } = await Clipboard.read();
-      console.log("file " + file);
       const oldPasteStr = pasteStr;
       if (file) {
         pasteStr = file;
       }
-      console.log("oldPasteStr " + oldPasteStr);
-
       try {
         pasteStr = fileURLToPath(pasteStr);
       } catch (e) {
@@ -64,8 +68,7 @@ export async function pasteAs(advancedPasteFormat: string) {
       }
 
       if (fse.pathExistsSync(pasteStr)) {
-        console.log("pasteStr " + pasteStr);
-        realPasteFormatIcon = "📃";
+        realPasteFormatIcon = "📄";
         realPasteFormat = PasteFormat.File;
         isPasteAsFile = true;
       } else {
@@ -114,7 +117,7 @@ export async function pasteAs(advancedPasteFormat: string) {
     }
   }
 
-  await showHUD(`${realPasteFormatIcon} Paste as ${realPasteFormat}`);
+  await showCustomHUD({ title: `${realPasteFormatIcon} Paste as ${realPasteFormat}` });
   await updateCommandMetadata({
     subtitle: isEmpty(advancedPasteFormat) ? PasteFormat.PLAIN_TEXT : advancedPasteFormat,
   });

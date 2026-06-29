@@ -1,23 +1,30 @@
-import { Action, ActionPanel, Application, Clipboard, Detail, List, getFrontmostApplication, Icon } from "@raycast/api";
+import type { Application } from "@raycast/api";
+import { Detail, List, getFrontmostApplication, getPreferenceValues } from "@raycast/api";
 import { useEffect, useState } from "react";
-import { ProcessOutput } from "zx";
-import { capitalCase, kebabCase } from "change-case";
-
+import path from "node:path";
 import { commandNotFoundMd, noContentMd } from "./content/messages";
-
-import { FormattedMatch } from "./lib/types";
-import { getEspansoConfig, getMatches, sortMatches } from "./lib/utils";
-
+import type { FormattedMatch } from "./lib/types";
+import { getEspansoConfig, getMatches, sortMatches, formatCategoryName } from "./lib/utils";
 import CategoryDropdown from "./components/category-dropdown";
+import ProfileDropdown from "./components/profile-dropdown";
+import MatchItem from "./components/match-item";
 
 export default function Command() {
+  const { breadcrumbSeparator = "·" } = getPreferenceValues<{ breadcrumbSeparator?: string }>();
+  const separator = ` ${breadcrumbSeparator.trim()} `;
+
+  const [refreshKey, setRefreshKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [items, setItems] = useState<FormattedMatch[]>([]);
   const [filteredItems, setFilteredItems] = useState<FormattedMatch[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [error, setError] = useState<ProcessOutput | null>(null);
+  const [profiles, setProfiles] = useState<string[]>([]);
+  const [selectedProfile, setSelectedProfile] = useState<string>("all");
+  const [error, setError] = useState<Error | null>(null);
   const [application, setApplication] = useState<Application | undefined>(undefined);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [configPath, setConfigPath] = useState<string>("");
 
   useEffect(() => {
     getFrontmostApplication().then(setApplication);
@@ -25,8 +32,10 @@ export default function Command() {
 
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
       try {
-        const { packages: packageFilesDirectory, match: matchFilesDirectory } = await getEspansoConfig();
+        const { config, packages: packageFilesDirectory, match: matchFilesDirectory } = getEspansoConfig();
+        setConfigPath(config);
 
         const combinedMatches = [
           ...getMatches(packageFilesDirectory, { packagePath: true }),
@@ -36,58 +45,110 @@ export default function Command() {
         const sortedMatches = sortMatches(combinedMatches);
 
         const categoriesSet = new Set<string>();
-        const formattedMatches: FormattedMatch[] = sortedMatches.map((match) => {
-          const pathParts = match.filePath.split("match/")[1]?.split("/") || [];
-          let category = pathParts[0]?.replace(".yml", "") ?? "";
-          let subcategory = pathParts[1]?.replace(".yml", "");
 
-          if (subcategory?.toLowerCase() === "index" || subcategory === category) {
-            subcategory = "";
-          } else {
-            subcategory = kebabCase(subcategory ?? "");
-          }
+        const profilesSet = new Set<string>();
 
-          category = kebabCase(category);
-          categoriesSet.add(category);
+        const formattedMatches: FormattedMatch[] = sortedMatches
+          .filter((match) => !match.form)
+          .map((match, index) => {
+            const matchDirIndex = match.filePath.lastIndexOf(`${path.sep}match${path.sep}`);
+            const packagesDirIndex = match.filePath.lastIndexOf(`${path.sep}packages${path.sep}`);
+            const startIndex = Math.max(matchDirIndex, packagesDirIndex);
 
-          return {
-            ...match,
-            category,
-            subcategory,
-            triggers: match.triggers,
-            replace: match.replace,
-            form: match.form,
-            label: match.label,
-            filePath: match.filePath,
-          };
-        });
+            let pathParts: string[] = [];
+            if (startIndex !== -1) {
+              const dirName = matchDirIndex > packagesDirIndex ? "match" : "packages";
+              const relativePath = match.filePath.substring(startIndex + dirName.length + 2);
+              pathParts = relativePath.split(path.sep);
+            } else {
+              pathParts = [path.basename(match.filePath)];
+            }
+
+            const allParts = pathParts.map((part) => part.replace(/\.yml$/i, "")).filter(Boolean);
+
+            let profile: string | undefined = undefined;
+            let category = "";
+            let subcategory = "";
+
+            if (allParts[0] === "profiles" && allParts.length > 1) {
+              profile = allParts[1];
+              profilesSet.add(profile);
+
+              const remainingParts = allParts.slice(2);
+
+              if (remainingParts.length > 1) {
+                const folderParts = remainingParts.slice(0, -1);
+                const fileName = remainingParts[remainingParts.length - 1];
+                category = folderParts.map((part) => part.toLowerCase()).join(separator);
+                subcategory = fileName.toLowerCase() === "index" ? "" : fileName.toLowerCase();
+              } else {
+                category = remainingParts[0]?.toLowerCase() || "";
+                subcategory = "";
+              }
+            } else {
+              if (allParts.length > 1) {
+                const folderParts = allParts.slice(0, -1);
+                const fileName = allParts[allParts.length - 1];
+                category = folderParts.map((part) => part.toLowerCase()).join(separator);
+                subcategory = fileName.toLowerCase() === "index" ? "" : fileName.toLowerCase();
+              } else {
+                category = allParts[0]?.toLowerCase() || "";
+                subcategory = "";
+              }
+            }
+
+            categoriesSet.add(category);
+            return {
+              ...match,
+              category,
+              subcategory,
+              profile,
+              triggers: match.triggers,
+              replace: match.replace,
+              label: match.label,
+              filePath: match.filePath,
+              index,
+            };
+          });
 
         const sortedCategories = Array.from(categoriesSet).sort((a, b) => {
-          if (a === "base") return -1;
-          if (b === "base") return 1;
+          if (a.startsWith("base")) return -1;
+          if (b.startsWith("base")) return 1;
           return a.localeCompare(b);
         });
+
+        const sortedProfiles = Array.from(profilesSet).sort((a, b) => a.localeCompare(b));
 
         setItems(formattedMatches);
         setFilteredItems(formattedMatches);
         setCategories(["all", ...sortedCategories]);
+        setProfiles(["all", ...sortedProfiles]);
         setIsLoading(false);
       } catch (err) {
-        setError(err instanceof ProcessOutput ? err : null);
+        setError(err instanceof Error ? err : null);
         setIsLoading(false);
       }
     };
-
     fetchData();
-  }, []);
+  }, [refreshKey]);
 
   useEffect(() => {
-    setFilteredItems(selectedCategory === "all" ? items : items.filter((item) => item.category === selectedCategory));
-  }, [selectedCategory, items]);
+    let filtered = items;
+
+    if (selectedProfile !== "all") {
+      filtered = filtered.filter((item) => item.profile === selectedProfile);
+    }
+
+    if (selectedCategory !== "all") {
+      filtered = filtered.filter((item) => item.category === selectedCategory);
+    }
+
+    setFilteredItems(filtered);
+  }, [selectedCategory, selectedProfile, items]);
 
   if (error) {
-    const notFound = /command not found/.test(error.stderr);
-    return <Detail markdown={notFound ? commandNotFoundMd : error.stderr} />;
+    const notFound = /command not found/.test(error.message);
+    return <Detail markdown={notFound ? commandNotFoundMd : error.message} />;
   }
 
   if (!isLoading && items.length === 0) {
@@ -108,8 +169,8 @@ export default function Command() {
   const sections = groupByCategory(filteredItems);
 
   const sortedSectionKeys = Object.keys(sections).sort((a, b) => {
-    if (a === "base") return -1;
-    if (b === "base") return 1;
+    if (a.startsWith("base")) return -1;
+    if (b.startsWith("base")) return 1;
     return a.localeCompare(b);
   });
 
@@ -121,8 +182,8 @@ export default function Command() {
         const subcategoryCompare = a.subcategory.localeCompare(b.subcategory);
         if (subcategoryCompare !== 0) return subcategoryCompare;
       }
-      const labelA = a.label ?? a.replace;
-      const labelB = b.label ?? b.replace;
+      const labelA = a.label ?? a.replace ?? a.triggers[0];
+      const labelB = b.label ?? b.replace ?? b.triggers[0];
       return labelA.localeCompare(labelB);
     });
   };
@@ -131,68 +192,33 @@ export default function Command() {
     <List
       isShowingDetail
       isLoading={isLoading}
-      searchBarAccessory={<CategoryDropdown categories={categories} onCategoryChange={setSelectedCategory} />}
+      onSelectionChange={setSelectedItemId}
+      searchBarAccessory={
+        <>
+          {profiles.length > 1 && (
+            <ProfileDropdown profiles={profiles} onProfileChange={setSelectedProfile} separator={separator} />
+          )}
+          <CategoryDropdown categories={categories} onCategoryChange={setSelectedCategory} separator={separator} />
+        </>
+      }
     >
       {sortedSectionKeys.map((sectionKey) => {
         const sortedItems = sortItems(sections[sectionKey]);
         return (
-          <List.Section key={sectionKey} title={capitalCase(sectionKey)}>
-            {sortedItems.map(({ triggers, replace, form, label, filePath, subcategory }, index) => {
-              const itemKey = `${filePath}-${index}`;
-
+          <List.Section key={sectionKey} title={formatCategoryName(sectionKey, separator)}>
+            {sortedItems.map((match, index) => {
+              const id = `${match.filePath}-${index}`;
               return (
-                <List.Item
-                  key={itemKey}
-                  title={label ?? triggers.join(", ")}
-                  subtitle={subcategory ? capitalCase(subcategory) : ""}
-                  detail={
-                    <List.Item.Detail
-                      markdown={form ? "`form` is not supported yet." : replace}
-                      metadata={
-                        <List.Item.Detail.Metadata>
-                          <List.Item.Detail.Metadata.TagList title="Triggers">
-                            {triggers.map((trigger: string) => (
-                              <List.Item.Detail.Metadata.TagList.Item key={trigger} text={trigger} color="#d7d0d1" />
-                            ))}
-                          </List.Item.Detail.Metadata.TagList>
-                          {label && (
-                            <List.Item.Detail.Metadata.TagList title="Label">
-                              <List.Item.Detail.Metadata.TagList.Item text={label} color="#d7d0d1" />
-                            </List.Item.Detail.Metadata.TagList>
-                          )}
-                          <List.Item.Detail.Metadata.TagList title="Category">
-                            <List.Item.Detail.Metadata.TagList.Item text={capitalCase(sectionKey)} color="#8da0cb" />
-                          </List.Item.Detail.Metadata.TagList>
-                          {subcategory && (
-                            <List.Item.Detail.Metadata.TagList title="Subcategory">
-                              <List.Item.Detail.Metadata.TagList.Item text={capitalCase(subcategory)} color="#fc8d62" />
-                            </List.Item.Detail.Metadata.TagList>
-                          )}
-                          <List.Item.Detail.Metadata.Label title="File" text={filePath} />
-                        </List.Item.Detail.Metadata>
-                      }
-                    />
-                  }
-                  actions={
-                    <ActionPanel>
-                      {!form && (
-                        <>
-                          <Action
-                            icon={Icon.Desktop}
-                            title={`Paste to ${application?.name}`}
-                            onAction={() => Clipboard.paste(replace)}
-                          />
-
-                          <Action.CopyToClipboard title="Copy Content" content={replace} />
-                        </>
-                      )}
-                      <Action.CopyToClipboard title="Copy Triggers" content={triggers.join(", ")} />
-                      {label && <Action.CopyToClipboard title="Copy Label" content={label} />}
-                      <Action.OpenWith path={filePath} />
-                      <Action.ShowInFinder path={filePath} />
-                      <Action.Trash title="Move the Whole File to Trash" paths={filePath} />
-                    </ActionPanel>
-                  }
+                <MatchItem
+                  key={id}
+                  id={id}
+                  match={match}
+                  sectionKey={sectionKey}
+                  application={application}
+                  separator={separator}
+                  isSelected={selectedItemId === id}
+                  configPath={configPath}
+                  onEdited={() => setRefreshKey((k) => k + 1)}
                 />
               );
             })}

@@ -1,4 +1,7 @@
-export interface Preferences {
+import { getPreferenceValues } from "@raycast/api";
+
+interface Preferences {
+  showTips: boolean;
   layout: string;
   columns: string;
   itemInset: string;
@@ -10,4 +13,19 @@ export interface Preferences {
   nullArgumentsAction: string;
   defaultFileType: string;
   defaultFileContent: string;
+  defaultDirectory: string;
 }
+export const {
+  showTips,
+  layout,
+  columns,
+  itemInset,
+  showDocument,
+  showCode,
+  showScript,
+  createdAction,
+  nullArgumentsAction,
+  defaultFileType,
+  defaultFileContent,
+  defaultDirectory,
+} = getPreferenceValues<Preferences>();
